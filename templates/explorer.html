@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registry Change Explorer</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        body {
+            background: #0c0c0c;
+            color: #d4d4d4;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Заголовок */
+        .header {
+            background: #1e1e1e;
+            padding: 8px 15px;
+            border-bottom: 2px solid #ff6b6b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+
+        .status {
+            color: #888;
+            font-size: 12px;
+        }
+
+        /* Поисковая панель */
+        .search-panel {
+            background: #1e1e1e;
+            padding: 10px 15px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            display: flex;
+            gap: 5px;
+            min-width: 300px;
+        }
+
+        .search-box input {
+            flex: 1;
+            background: #2d2d2d;
+            border: 1px solid #444;
+            padding: 8px 12px;
+            color: #d4d4d4;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #ff6b6b;
+        }
+
+        .action-button {
+            background: #ff6b6b;
+            border: none;
+            color: #1e1e1e;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .action-button:hover {
+            background: #ff5252;
+        }
+
+        .action-button.secondary {
+            background: #3a3d41;
+            color: #d4d4d4;
+            border: 1px solid #555;
+        }
+
+        .action-button.secondary:hover {
+            background: #4a4d52;
+        }
+
+        .sync-status {
+            background: #2d2d2d;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #888;
+            min-width: 250px;
+        }
+
+        /* Прогресс синхронизации */
+        .sync-progress {
+            background: #2d2d2d;
+            padding: 8px 15px;
+            border-bottom: 1px solid #333;
+            display: none;
+        }
+
+        .sync-progress.active {
+            display: block;
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: #3e3e3e;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 5px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #ff6b6b;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .progress-fill.indeterminate {
+            width: 35%;
+            animation: slide 1.1s ease-in-out infinite;
+        }
+
+        @keyframes slide {
+            0% { transform: translateX(-120%); }
+            100% { transform: translateX(320%); }
+        }
+
+        .progress-text {
+            font-size: 12px;
+            color: #888;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Основной контейнер с тремя колонками */
+        .commander {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            background: #1e1e1e;
+            gap: 2px;
+        }
+
+        /* Левая колонка - дерево */
+        .tree-panel {
+            width: 300px;
+            background: #252526;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #333;
+        }
+
+        .panel-header {
+            padding: 8px 10px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #333;
+            font-weight: bold;
+            color: #ff6b6b;
+        }
+
+        .tree-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 5px 0;
+            font-size: 13px;
+        }
+
+        .tree-item {
+            padding: 4px 10px 4px 20px;
+            cursor: pointer;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .tree-item:hover {
+            background: #2d2d2d;
+        }
+
+        .tree-item.selected {
+            background: #ff6b6b;
+            color: #1e1e1e;
+        }
+
+        .tree-item .icon {
+            width: 20px;
+            text-align: center;
+        }
+
+        .tree-children {
+            margin-left: 20px;
+        }
+
+        /* Правая часть - две панели MC */
+        .mc-panels {
+            flex: 1;
+            display: flex;
+            gap: 2px;
+        }
+
+        .mc-panel {
+            flex: 1;
+            background: #252526;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-title {
+            padding: 8px 10px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+
+        .panel-title .path {
+            color: #888;
+            font-size: 12px;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            font-size: 13px;
+        }
+
+        .mc-item {
+            padding: 4px 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #333;
+        }
+
+        .mc-item:hover {
+            background: #2d2d2d;
+        }
+
+        .mc-item.selected {
+            background: #ff6b6b;
+            color: #1e1e1e;
+        }
+
+        .mc-item .icon {
+            width: 20px;
+            text-align: center;
+        }
+
+        .mc-item .name {
+            flex: 1;
+        }
+
+        .mc-item .size {
+            color: #888;
+            font-size: 11px;
+        }
+
+        /* Панель функций (F-кнопки) */
+        .function-bar {
+            background: #1e1e1e;
+            padding: 8px 15px;
+            border-top: 2px solid #ff6b6b;
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+            flex-wrap: wrap;
+        }
+
+        .f-key {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+
+        .f-desc {
+            color: #888;
+        }
+
+        /* Таблица значений */
+        .values-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .values-table th {
+            text-align: left;
+            padding: 6px 10px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #444;
+            font-weight: normal;
+            color: #888;
+        }
+
+        .values-table td {
+            padding: 4px 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .values-table tr:hover {
+            background: #2d2d2d;
+        }
+
+        .value-name {
+            color: #9cdcfe;
+        }
+
+        .value-type {
+            color: #ce9178;
+        }
+
+        .value-data {
+            color: #6a9955;
+            font-family: monospace;
+        }
+
+        /* Статус бар */
+        .status-bar {
+            background: #007acc;
+            color: white;
+            padding: 3px 15px;
+            font-size: 12px;
+        }
+
+        /* Скролл */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #ff6b6b;
+            border-radius: 4px;
+        }
+
+        /* Анимация синхронизации */
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .syncing {
+            animation: pulse 1s infinite;
+            color: #ff6b6b;
+        }
+    
+        .header-actions { display:flex; align-items:center; gap:12px; }
+        .lang-switch { display:flex; gap:4px; }
+        .lang-button { background:#2d2d2d; border:1px solid #444; color:#aaa; padding:3px 7px; border-radius:3px; cursor:pointer; font:inherit; font-size:11px; }
+        .lang-button.active { color:#1e1e1e; background:#ff6b6b; border-color:#ff6b6b; font-weight:bold; }
+</style>
+</head>
+<body>
+    <div class="header">
+        <span id="productTitle">🔥 REGISTRY CHANGE EXPLORER — WINDOWS REGISTRY INSPECTION</span>
+        <div class="header-actions">
+            <div class="lang-switch" aria-label="Language">
+                <button class="lang-button" id="langEn" onclick="setLanguage('en')">EN</button>
+                <button class="lang-button" id="langRu" onclick="setLanguage('ru')">RU</button>
+            </div>
+            <span class="status" id="adminStatus"></span>
+        </div>
+    </div>
+
+    <div class="search-panel">
+        <div class="search-box">
+            <input type="text" id="searchInput" onkeypress="if(event.key==='Enter') searchRegistry()">
+            <button class="action-button" id="searchButton" onclick="searchRegistry()">SEARCH</button>
+        </div>
+        <button class="action-button secondary" id="syncButton" onclick="requestSync()">↻ SYNC INDEX</button>
+        <div class="sync-status" id="syncStatus">
+            <span id="syncText">⏳ Loading local index...</span>
+            <span id="syncProgress"></span>
+        </div>
+    </div>
+
+    <div class="sync-progress" id="syncProgressContainer">
+        <div class="progress-text">
+            <span id="progressMessage">⏳ Indexing Windows Registry...</span>
+            <span id="progressPercent">0%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progressBar" style="width: 0%;"></div></div>
+        <div class="progress-text">
+            <span id="progressKeys">0 keys</span>
+            <span id="progressTime">0s</span>
+        </div>
+    </div>
+
+    <div class="commander">
+        <div class="tree-panel">
+            <div class="panel-header" id="treeHeader">📁 REGISTRY TREE</div>
+            <div class="tree-content" id="treeContent"></div>
+        </div>
+        <div class="mc-panels">
+            <div class="mc-panel" id="panel1">
+                <div class="panel-title"><span id="panel1Label">PANEL 1</span><span class="path" id="panel1Path">HKEY_CURRENT_USER</span></div>
+                <div class="panel-content" id="panel1Content"></div>
+            </div>
+            <div class="mc-panel" id="panel2">
+                <div class="panel-title"><span id="panel2Label">PANEL 2</span><span class="path" id="panel2Path">HKEY_LOCAL_MACHINE</span></div>
+                <div class="panel-content" id="panel2Content"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="function-bar">
+        <span><span class="f-key">F3</span> <span class="f-desc" id="hintSearch">Search</span></span>
+        <span><span class="f-key">F5</span> <span class="f-desc" id="hintRefresh">Refresh panel</span></span>
+        <span><span class="f-key">F9</span> <span class="f-desc" id="hintSync">Sync index</span></span>
+        <span><span class="f-key">Tab</span> <span class="f-desc" id="hintPanel">Switch panel</span></span>
+    </div>
+    <div class="status-bar" id="statusBar">⚡ Ready | Loading local index...</div>
+
+    <script>
+        const socket = io();
+        const I18N = {
+            en: {
+                title: '🔥 REGISTRY CHANGE EXPLORER — WINDOWS REGISTRY INSPECTION',
+                placeholder: '🔍 Instant search (for example: Windows, CurrentVersion, ProductName...)',
+                search: 'SEARCH', sync: '↻ SYNC INDEX', loading: '⏳ Loading local index...', indexing: '⏳ Indexing Windows Registry...',
+                tree: '📁 REGISTRY TREE', panel1: 'PANEL 1', panel2: 'PANEL 2', hintSearch: 'Search', hintRefresh: 'Refresh panel', hintSync: 'Sync index', hintPanel: 'Switch panel',
+                ready: 'Ready | Loading local index...', connected: 'Connection established', syncStarted: 'Registry indexing started', syncDone: 'Index update completed', syncError: 'Indexing error: ',
+                demo: '🧪 DEMO MODE', admin: '👑 ADMINISTRATOR', readonly: '👁️ READ ONLY', keys: 'keys', values: 'values', valueShort: 'val.', up: '(up)', valuesTitle: '📄 VALUES:',
+                min2: 'Enter at least 2 characters', searching: 'Searching for', searchError: 'Search error', found: 'Found', results: '🔍 SEARCH RESULTS', keySection: '🔑 KEYS', valueSection: '📄 VALUES',
+                activePanel: 'Active panel', statusError: 'Could not read index status', seconds: 's', database: 'Index'
+            },
+            ru: {
+                title: '🔥 REGISTRY CHANGE EXPLORER — АНАЛИЗ РЕЕСТРА WINDOWS',
+                placeholder: '🔍 Мгновенный поиск (например: Windows, CurrentVersion, ProductName...)',
+                search: 'НАЙТИ', sync: '↻ ОБНОВИТЬ ИНДЕКС', loading: '⏳ Загрузка локального индекса...', indexing: '⏳ Индексация реестра Windows...',
+                tree: '📁 ДЕРЕВО РЕЕСТРА', panel1: 'ПАНЕЛЬ 1', panel2: 'ПАНЕЛЬ 2', hintSearch: 'Поиск', hintRefresh: 'Обновить панель', hintSync: 'Обновить индекс', hintPanel: 'Сменить панель',
+                ready: 'Готово | Загружается локальный индекс...', connected: 'Соединение установлено', syncStarted: 'Индексация реестра запущена', syncDone: 'Индекс обновлён', syncError: 'Ошибка индексации: ',
+                demo: '🧪 ДЕМО-РЕЖИМ', admin: '👑 АДМИНИСТРАТОР', readonly: '👁️ ТОЛЬКО ЧТЕНИЕ', keys: 'ключей', values: 'значений', valueShort: 'зн.', up: '(вверх)', valuesTitle: '📄 ЗНАЧЕНИЯ:',
+                min2: 'Введите минимум 2 символа', searching: 'Ищем', searchError: 'Ошибка поиска', found: 'Найдено', results: '🔍 РЕЗУЛЬТАТЫ ПОИСКА', keySection: '🔑 КЛЮЧИ', valueSection: '📄 ЗНАЧЕНИЯ',
+                activePanel: 'Активна панель', statusError: 'Не удалось получить статус индекса', seconds: 'с', database: 'Индекс'
+            }
+        };
+        let lang = new URLSearchParams(location.search).get('lang') || localStorage.getItem('rce-lang') || ((navigator.language || '').toLowerCase().startsWith('ru') ? 'ru' : 'en');
+        if (!I18N[lang]) lang = 'en';
+        let currentPanel = 1;
+        const panelPaths = {1: 'HKEY_CURRENT_USER', 2: 'HKEY_LOCAL_MACHINE'};
+        const isAdmin = {{ 'true' if admin else 'false' }};
+        const demoMode = {{ 'true' if demo_mode else 'false' }};
+        let syncStartTime = null;
+        let demoBootstrapped = false;
+        const t = (key) => I18N[lang][key];
+        const locale = () => lang === 'ru' ? 'ru-RU' : 'en-US';
+
+        function setText(id, text) { document.getElementById(id).textContent = text; }
+        function updateStatus(message) { setText('statusBar', '⚡ ' + message); }
+        function applyLanguage() {
+            document.documentElement.lang = lang;
+            setText('productTitle', t('title')); document.getElementById('searchInput').placeholder = t('placeholder');
+            setText('searchButton', t('search')); setText('syncButton', t('sync')); setText('treeHeader', t('tree')); setText('panel1Label', t('panel1')); setText('panel2Label', t('panel2'));
+            setText('hintSearch', t('hintSearch')); setText('hintRefresh', t('hintRefresh')); setText('hintSync', t('hintSync')); setText('hintPanel', t('hintPanel'));
+            document.getElementById('langEn').classList.toggle('active', lang === 'en'); document.getElementById('langRu').classList.toggle('active', lang === 'ru');
+            setText('adminStatus', demoMode ? t('demo') : (isAdmin ? t('admin') : t('readonly')));
+        }
+        function setLanguage(next) { lang = next; localStorage.setItem('rce-lang', lang); applyLanguage(); checkSyncStatus(); loadPanel(1, panelPaths[1]); loadPanel(2, panelPaths[2]); }
+
+        socket.on('connect', () => updateStatus(t('connected')));
+        socket.on('connected', (data) => console.log(data.message));
+        socket.on('sync_start', () => {
+            syncStartTime = Date.now(); const container = document.getElementById('syncProgressContainer'); const bar = document.getElementById('progressBar');
+            container.classList.add('active'); bar.classList.add('indeterminate'); setText('progressMessage', t('indexing')); setText('progressPercent', '…'); updateStatus(t('syncStarted'));
+        });
+        socket.on('sync_progress', (data) => {
+            const current = Number(data.current || 0); setText('progressKeys', current.toLocaleString(locale()) + ' ' + t('keys')); setText('syncText', t('indexing')); setText('syncProgress', ` (${current.toLocaleString(locale())} ${t('keys')})`);
+            if (syncStartTime) setText('progressTime', Math.round((Date.now() - syncStartTime) / 1000) + t('seconds'));
+        });
+        socket.on('sync_complete', (data) => {
+            finishSyncUi(); const stats = data.stats || {}; setText('syncText', `📊 ${t('database')}: ${(stats.total_keys || 0).toLocaleString(locale())} ${t('keys')}, ${(stats.total_values || 0).toLocaleString(locale())} ${t('values')}`);
+            updateStatus(t('syncDone')); loadPanel(1, panelPaths[1]); loadPanel(2, panelPaths[2]);
+        });
+        socket.on('sync_error', (data) => { finishSyncUi(); updateStatus(t('syncError') + data.message); });
+
+        function finishSyncUi() { syncStartTime = null; document.getElementById('syncProgressContainer').classList.remove('active'); document.getElementById('progressBar').classList.remove('indeterminate'); setText('syncProgress', ''); }
+        document.addEventListener('DOMContentLoaded', async () => { applyLanguage(); updateStatus(t('ready')); loadHives(); await checkSyncStatus(); loadPanel(1, panelPaths[1]); loadPanel(2, panelPaths[2]); setInterval(checkSyncStatus, 2500); });
+
+        async function loadHives() {
+            const response = await fetch('/api/hives'); const hives = await response.json(); const tree = document.getElementById('treeContent'); tree.replaceChildren(); hives.forEach(hive => tree.appendChild(createTreeItem(hive.path, hive.name, true)));
+        }
+        function createTreeItem(path, name, hasChildren) {
+            const div = document.createElement('div'); div.className = 'tree-item'; div.dataset.path = path;
+            const arrow = document.createElement('span'); arrow.className = 'icon arrow'; arrow.textContent = hasChildren ? '▶' : '';
+            const icon = document.createElement('span'); icon.className = 'icon'; icon.textContent = '📁'; const text = document.createElement('span'); text.textContent = name; div.append(arrow, icon, text);
+            div.addEventListener('click', (event) => { event.stopPropagation(); loadPanel(currentPanel, path); });
+            if (hasChildren) div.addEventListener('dblclick', (event) => { event.stopPropagation(); toggleTreeChildren(div, path); });
+            return div;
+        }
+        async function toggleTreeChildren(parent, path) {
+            const existing = parent.nextElementSibling; if (existing && existing.classList.contains('tree-children')) { existing.remove(); parent.querySelector('.arrow').textContent = '▶'; return; }
+            const response = await fetch(`/api/browse/${encodeURIComponent(path)}`); const data = await response.json(); if (!data.success) return;
+            const container = document.createElement('div'); container.className = 'tree-children'; data.keys.forEach(key => container.appendChild(createTreeItem(key.path, key.name, key.has_children))); parent.after(container); parent.querySelector('.arrow').textContent = '▼';
+        }
+        async function loadPanel(panel, path) { panelPaths[panel] = path; setText(`panel${panel}Path`, path); const response = await fetch(`/api/browse/${encodeURIComponent(path)}`); const data = await response.json(); if (data.success) displayPanel(panel, data); }
+        function makePanelItem(iconText, nameText, sizeText, onClick) {
+            const row = document.createElement('div'); row.className = 'mc-item'; const icon = document.createElement('span'); icon.className = 'icon'; icon.textContent = iconText;
+            const name = document.createElement('span'); name.className = 'name'; name.textContent = nameText; const size = document.createElement('span'); size.className = 'size'; size.textContent = sizeText || ''; row.append(icon, name, size); if (onClick) row.addEventListener('click', onClick); return row;
+        }
+        function displayPanel(panel, data) {
+            const content = document.getElementById(`panel${panel}Content`); content.replaceChildren();
+            if (data.path.includes('\\')) { const parentPath = data.path.substring(0, data.path.lastIndexOf('\\')); content.appendChild(makePanelItem('📁', '..', t('up'), () => loadPanel(panel, parentPath))); }
+            data.keys.forEach(key => content.appendChild(makePanelItem(key.has_children ? '📂' : '📁', key.name, `${key.values_count || 0} ${t('valueShort')}`, () => loadPanel(panel, key.path))));
+            if (data.values.length) {
+                const title = document.createElement('div'); title.style.cssText = 'padding:10px 10px 5px; color:#ff6b6b;'; title.textContent = t('valuesTitle'); content.appendChild(title);
+                const table = document.createElement('table'); table.className = 'values-table'; data.values.forEach(value => { const tr = document.createElement('tr'); const name = document.createElement('td'); name.className='value-name'; name.textContent=value.name; const type=document.createElement('td'); type.className='value-type'; type.textContent=value.type; const payload=document.createElement('td'); payload.className='value-data'; payload.textContent=value.data; tr.append(name,type,payload); table.appendChild(tr); }); content.appendChild(table);
+            }
+        }
+        async function searchRegistry() {
+            const term = document.getElementById('searchInput').value.trim(); if (term.length < 2) { updateStatus(t('min2')); return; } updateStatus(`${t('searching')} “${term}”...`);
+            const response = await fetch(`/api/search?q=${encodeURIComponent(term)}`); const data = await response.json(); if (!data.success) { updateStatus(data.error || t('searchError')); return; } displaySearchResults(data.results); updateStatus(`${t('found')}: ${data.results.total}`);
+        }
+        function displaySearchResults(results) {
+            const panel = 2; const content = document.getElementById(`panel${panel}Content`); content.replaceChildren(); const header=document.createElement('div'); header.style.cssText='padding:10px; color:#ff6b6b; font-weight:bold;'; header.textContent=`${t('results')} (${results.total})`; content.appendChild(header);
+            if (results.keys.length) { const section=document.createElement('div'); section.style.cssText='padding:6px 10px; font-weight:bold;'; section.textContent=t('keySection'); content.appendChild(section); results.keys.slice(0,50).forEach(item=>content.appendChild(makePanelItem('📁', item.path, '', ()=>loadPanel(panel,item.path)))); }
+            if (results.values.length) { const section=document.createElement('div'); section.style.cssText='padding:10px 10px 6px; font-weight:bold;'; section.textContent=t('valueSection'); content.appendChild(section); results.values.slice(0,50).forEach(item=>content.appendChild(makePanelItem('📄', item.name, item.data, ()=>loadPanel(panel,item.path)))); }
+        }
+        async function checkSyncStatus() {
+            try { const response=await fetch('/api/status'); const stats=await response.json(); if (stats.is_syncing) { setText('syncText', t('indexing')); setText('syncProgress', ` (${(stats.progress||0).toLocaleString(locale())} ${t('keys')})`); } else { setText('syncText', `📊 ${t('database')}: ${(stats.total_keys||0).toLocaleString(locale())} ${t('keys')}, ${(stats.total_values||0).toLocaleString(locale())} ${t('values')}`); }
+                if (demoMode && !demoBootstrapped && !stats.is_syncing && stats.total_keys===0) { demoBootstrapped=true; requestSync(); } return stats;
+            } catch (error) { updateStatus(t('statusError')); return null; }
+        }
+        function requestSync() { if (syncStartTime) return; syncStartTime=Date.now(); socket.emit('request_sync', {}); }
+        document.addEventListener('keydown', (event) => {
+            if (event.key==='Tab') { event.preventDefault(); currentPanel=currentPanel===1?2:1; updateStatus(`${t('activePanel')} ${currentPanel}`); }
+            else if (event.key==='F3') { event.preventDefault(); document.getElementById('searchInput').focus(); }
+            else if (event.key==='F5') { event.preventDefault(); loadPanel(currentPanel, panelPaths[currentPanel]); }
+            else if (event.key==='F9') { event.preventDefault(); requestSync(); }
+        });
+    </script>
+</body>
+</html>
