@@ -2,6 +2,8 @@
 
 > **English** · [Русский](README.ru.md)
 
+📖 **Project article / Статья:** [ARTICLE.md](ARTICLE.md)
+
 **Registry Change Explorer** is an independent, read-only prototype for fast Windows Registry navigation and search, with a longer-term goal: make Registry changes understandable to administrators, developers, support engineers, and security-minded power users.
 
 The current MVP builds a local SQLite index of Registry keys and values and provides a fast dual-pane web UI. The project roadmap extends that foundation toward **Snapshot A → system change → Snapshot B → human-readable diff**.
