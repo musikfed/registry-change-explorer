@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local configuration
+.env
+
+# Runtime registry index / SQLite
+registry.db
+registry.db-*
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Logs / OS / IDE
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local archives and scratch copies
+copy_versiy/
+*.zip
