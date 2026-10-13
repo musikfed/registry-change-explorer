@@ -10,21 +10,15 @@ The current MVP builds a local SQLite index of Registry keys and values and prov
 
 > Independent community project. Not affiliated with or endorsed by Microsoft.
 
-## Screenshots
+## Screenshots / Скриншоты
 
-### English UI
+![Registry Change Explorer — main view preview](docs/screenshots/main-preview.svg)
 
-![Registry Change Explorer — English main view](docs/screenshots/en/main.png)
-
-![Registry Change Explorer — English search](docs/screenshots/en/search.png)
-
-### Русский интерфейс
-
-![Registry Change Explorer — русский основной экран](docs/screenshots/ru/main.png)
-
-![Registry Change Explorer — русский поиск](docs/screenshots/ru/search.png)
+![Registry Change Explorer — search preview](docs/screenshots/search-preview.svg)
 
 The UI includes an **EN / RU** language switch.
+
+> These SVG files are generated documentation previews, not captures of a live session. / Эти SVG — сгенерированные превью документации, а не снимки работающей сессии.
 
 ## Why this project exists
 
