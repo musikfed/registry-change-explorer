@@ -173,3 +173,9 @@ A GitHub Actions workflow is included at `.github/workflows/ci.yml`.
 ## Public-repository note
 
 A software license is intentionally **not selected in this package**. Decide on the licensing strategy before public release, especially if you want to keep commercial options open. See [docs/GITHUB_PUBLISHING.md](docs/GITHUB_PUBLISHING.md).
+
+## Contact / Контакты
+
+- Email: [feudor.lab@yandex.ru](mailto:feudor.lab@yandex.ru)
+- Telegram: [@Feudorlab1](https://t.me/Feudorlab1)
+
