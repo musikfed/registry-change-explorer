@@ -29,6 +29,16 @@ class DemoModeTest(unittest.TestCase):
             results = explorer.search('Microsoft')
             self.assertGreater(results['total'], 0)
 
+            # Expanded fixtures remain entirely synthetic and can be browsed.
+            self.assertGreaterEqual(stats['total_keys'], 60)
+            self.assertGreaterEqual(stats['total_values'], 25)
+            software = explorer.get_subkeys('HKEY_LOCAL_MACHINE\\\\SOFTWARE')
+            self.assertTrue(any(item['name'] == 'Microsoft' for item in software))
+            services = explorer.get_subkeys('HKEY_LOCAL_MACHINE\\\\SYSTEM\\\\CurrentControlSet\\\\Services')
+            self.assertTrue(any(item['name'] == 'Tcpip' for item in services))
+            values = explorer.get_values('HKEY_LOCAL_MACHINE\\\\SOFTWARE\\\\Microsoft\\\\Windows NT\\\\CurrentVersion')
+            self.assertTrue(any(item['name'] == 'ProductName' and 'demo' in item['data'].lower() for item in values))
+
 
 if __name__ == '__main__':
     unittest.main()
