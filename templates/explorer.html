@@ -195,6 +195,10 @@
         .tree-item:hover {
             background: #2d2d2d;
         }
+        .tree-item .arrow { cursor: pointer; user-select: none; }
+        .tree-children { border-left: 1px solid #424242; margin-left: 22px; }
+        .tree-content { scrollbar-color: #5d6671 #1e1e1e; }
+        .tree-item:focus-visible { outline: 1px solid #ff6b6b; outline-offset: -1px; }
 
         .tree-item.selected {
             background: #ff6b6b;
@@ -506,14 +510,25 @@
         document.addEventListener('DOMContentLoaded', async () => { applyLanguage(); updateStatus(t('ready')); loadHives(); await checkSyncStatus(); loadPanel(1, panelPaths[1]); loadPanel(2, panelPaths[2]); setInterval(checkSyncStatus, 2500); });
 
         async function loadHives() {
-            const response = await fetch('/api/hives'); const hives = await response.json(); const tree = document.getElementById('treeContent'); tree.replaceChildren(); hives.forEach(hive => tree.appendChild(createTreeItem(hive.path, hive.name, true)));
+            const response = await fetch('/api/hives'); const hives = await response.json(); const tree = document.getElementById('treeContent'); tree.replaceChildren();
+            for (const hive of hives) tree.appendChild(createTreeItem(hive.path, hive.name, true));
+            // Open the useful roots immediately, without fabricating any keys on real machines.
+            for (const path of ['HKEY_CURRENT_USER', 'HKEY_LOCAL_MACHINE']) {
+                const root = [...tree.querySelectorAll('.tree-item')].find(item => item.dataset.path === path);
+                if (root) await toggleTreeChildren(root, path);
+            }
         }
         function createTreeItem(path, name, hasChildren) {
             const div = document.createElement('div'); div.className = 'tree-item'; div.dataset.path = path;
             const arrow = document.createElement('span'); arrow.className = 'icon arrow'; arrow.textContent = hasChildren ? '▶' : '';
             const icon = document.createElement('span'); icon.className = 'icon'; icon.textContent = '📁'; const text = document.createElement('span'); text.textContent = name; div.append(arrow, icon, text);
-            div.addEventListener('click', (event) => { event.stopPropagation(); loadPanel(currentPanel, path); });
-            if (hasChildren) div.addEventListener('dblclick', (event) => { event.stopPropagation(); toggleTreeChildren(div, path); });
+            div.addEventListener('click', (event) => {
+                event.stopPropagation();
+                loadPanel(currentPanel, path);
+                if (hasChildren && !(event.target.closest('.arrow'))) return;
+                if (hasChildren) toggleTreeChildren(div, path);
+            });
+            if (hasChildren) div.addEventListener('dblclick', (event) => { event.stopPropagation(); event.preventDefault(); });
             return div;
         }
         async function toggleTreeChildren(parent, path) {
