@@ -176,3 +176,10 @@ A software license is intentionally **not selected in this package**. Decide on 
 ## Languages / Языки
 
 [English](README_EN.md) · [Русский](README_RU.md) · [हिन्दी](README_HI.md) · [简体中文](README_ZH-CN.md) · [Қазақша](README_KK.md) · [Монгол](README_MN.md) · [Саха тыла](README_SAH.md) · [Беларуская](README_BE.md) · [한국어](README_KO.md)
+
+
+## Visual project showcase · 11 languages
+
+[**Architecture and multilingual presentation**](docs/showcase/README.md)
+
+![registry-change-explorer architecture](docs/showcase/overview.svg)
