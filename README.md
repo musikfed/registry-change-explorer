@@ -182,4 +182,3 @@ A software license is intentionally **not selected in this package**. Decide on 
 
 [**Architecture and multilingual presentation**](docs/showcase/README.md)
 
-![registry-change-explorer architecture](docs/showcase/overview.svg)
