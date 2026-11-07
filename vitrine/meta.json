@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "id": "registry-change-explorer",
+  "title": "registry-change-explorer",
+  "version": "—",
+  "description": "Registry Change Explorer is an independent, read-only prototype for fast Windows Registry navigation and search, with a longer-term goal: make Registry changes understandable to administrators, developers, support engineers, and security-minded power users.",
+  "subtitle": null,
+  "tags": [
+    "Python"
+  ],
+  "visibility": "public",
+  "publication": "publish_on_merge",
+  "public_private_approved": false,
+  "display_mode": "diagram",
+  "status": "Черновик — ожидает проверки",
+  "repo_url": "https://github.com/musikfed/registry-change-explorer",
+  "screenshots": [],
+  "cover": "vitrine/generated/cover.svg",
+  "cover_type": "schematic-not-screenshot",
+  "screenshot_source": "not-available"
+}
